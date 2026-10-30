@@ -1,0 +1,39 @@
+[project]
+name = "pipebot-backend"
+version = "0.1.0"
+description = "FastAPI backend foundation for PipeBot robotic pipeline inspection platform"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "fastapi>=0.115.0,<0.116.0",
+    "uvicorn[standard]>=0.32.0,<0.33.0",
+    "pydantic>=2.9.0,<3.0.0",
+    "pydantic-settings>=2.6.0,<3.0.0",
+    "sqlalchemy>=2.0.36,<2.1.0",
+    "alembic>=1.14.0,<1.15.0",
+    "python-dotenv>=1.0.1,<2.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "httpx>=0.28.0,<0.29.0",
+    "pytest>=8.3.0,<9.0.0",
+    "pytest-asyncio>=0.24.0,<0.25.0",
+]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+filterwarnings = [
+    "ignore::DeprecationWarning:starlette.testclient",
+    "ignore::UserWarning:pydantic._internal._generate_schema",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["app*"]
+

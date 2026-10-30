@@ -1,0 +1,57 @@
+# Python Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment Variables & Secrets
+.env
+.env.local
+.env.*.local
+*.env
+
+# SQLite Database Files
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+data/*.db
+data/*.sqlite
+
+# Logs & Diagnostics
+logs/*.log
+*.log
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+tests/test_*.db
+
+# Model weights & media assets (precautionary)
+data/media/
+*.pt
+*.onnx
+*.weights
+*.engine
+*.mp4
+*.avi
+*.mkv
+*.jpg
+*.jpeg
+*.png
+!app/
+!docs/
+
+# IDE & OS Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
