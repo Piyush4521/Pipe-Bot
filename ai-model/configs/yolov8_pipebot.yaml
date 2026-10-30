@@ -1,0 +1,22 @@
+# Ultralytics YOLOv8 Dataset Configuration for PipeBot
+# Target Dataset: Pipe Defect Detection.v7 Dataset Pipe.yolov8
+
+path: ../dataset # Dataset root directory relative to config
+train: train/images # Training images
+val: valid/images # Validation images
+test: test/images # Test images
+
+# Canonical Anomaly Classes
+nc: 4
+names:
+  0: Deformation
+  1: Misalignment
+  2: Obstacle
+  3: Rupture
+
+# Hardware Optimization Profile:
+# Target GPU: NVIDIA GeForce RTX 2050 Laptop (4 GB VRAM)
+# Recommended base architecture: yolov8n.pt (Nano) or yolov8s.pt (Small)
+# Resolution: 640x640
+# Batch Size: 8 (recommended for 4GB VRAM with mixed precision fp16 enabled)
+# Workers: 4

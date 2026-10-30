@@ -57,13 +57,23 @@ backend/data/*.sqlite
 backend/data/media/
 backend/logs/*.log
 *.db
+*.db-wal
+*.db-shm
 *.sqlite
 *.log
+backups/
 
-# AI Model weights & checkpoints
+# AI Model weights, checkpoints, runs & datasets
 *.pt
 *.pth
 *.onnx
 *.weights
 *.engine
-
+ai-model/runs/
+ai-model/weights/*
+!ai-model/weights/.gitkeep
+ai-model/dataset/*
+!ai-model/dataset/.gitkeep
+!ai-model/dataset/README.md
+media/inspections/*
+!media/inspections/.gitkeep
