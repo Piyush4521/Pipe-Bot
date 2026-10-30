@@ -11,10 +11,13 @@ from typing import TYPE_CHECKING, Any, Dict, Optional
 from sqlalchemy import Boolean, Float, ForeignKey, Integer, JSON, String, Text, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UtcDateTime
+from app.db.base import Base, BigIntId, TimestampMixin, UtcDateTime
 
 if TYPE_CHECKING:
+    from app.models.ai_model import AIModelVersion
     from app.models.inspection import Inspection
+    from app.models.localization import LocalizationRecord
+    from app.models.media import EvidenceMedia
 
 
 PIPE_DEFECT_CLASSES = [
@@ -71,7 +74,11 @@ class Defect(Base, TimestampMixin):
 
     __tablename__ = "defects"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BigIntId,
+        primary_key=True,
+        autoincrement=True,
+    )
     defect_id: Mapped[str] = mapped_column(
         String(64),
         unique=True,
@@ -80,7 +87,7 @@ class Defect(Base, TimestampMixin):
         comment="Public unique defect identifier (e.g. DEF-20261030-XYZ123)",
     )
     inspection_id: Mapped[int] = mapped_column(
-        Integer,
+        BigIntId,
         ForeignKey("inspections.id", ondelete="RESTRICT"),
         nullable=False,
         index=True,
@@ -91,6 +98,13 @@ class Defect(Base, TimestampMixin):
         index=True,
         nullable=False,
         comment="Camera optical frame identifier associated with detection",
+    )
+    model_version_id: Mapped[Optional[int]] = mapped_column(
+        BigIntId,
+        ForeignKey("ai_model_versions.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+        comment="Foreign key referencing deployed AI model version used for detection",
     )
     defect_class: Mapped[DefectClass] = mapped_column(
         Enum(
@@ -158,10 +172,26 @@ class Defect(Base, TimestampMixin):
         comment="Soft-delete flag preserving regulatory compliance and audit history",
     )
 
-    # Relationship to parent inspection
+    # Relationships
     inspection: Mapped["Inspection"] = relationship(
         "Inspection",
         back_populates="defects",
+    )
+    model_version: Mapped[Optional["AIModelVersion"]] = relationship(
+        "AIModelVersion",
+        back_populates="defects",
+    )
+    evidence_media: Mapped[Optional["EvidenceMedia"]] = relationship(
+        "EvidenceMedia",
+        back_populates="defect",
+        uselist=False,
+        cascade="all, delete-orphan",
+    )
+    localization_record: Mapped[Optional["LocalizationRecord"]] = relationship(
+        "LocalizationRecord",
+        back_populates="defect",
+        uselist=False,
+        cascade="all, delete-orphan",
     )
 
     def __repr__(self) -> str:

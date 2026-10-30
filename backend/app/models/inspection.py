@@ -11,10 +11,16 @@ from typing import TYPE_CHECKING, List, Optional
 from sqlalchemy import Boolean, Float, Integer, String, Text, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base, TimestampMixin, UtcDateTime
+from app.db.base import Base, BigIntId, TimestampMixin, UtcDateTime
 
 if TYPE_CHECKING:
     from app.models.defect import Defect
+    from app.models.inspection_event import InspectionEvent
+    from app.models.inspection_summary import InspectionSummary
+    from app.models.device import DeviceSession, VehicleStatusEvent
+    from app.models.telemetry import EncoderSample, IMUSample
+    from app.models.media import CameraFrame
+    from app.models.report import InspectionReport
 
 
 class InspectionStatus(str, enum.Enum):
@@ -33,7 +39,11 @@ class Inspection(Base, TimestampMixin):
 
     __tablename__ = "inspections"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(
+        BigIntId,
+        primary_key=True,
+        autoincrement=True,
+    )
     inspection_id: Mapped[str] = mapped_column(
         String(64),
         unique=True,
@@ -111,6 +121,57 @@ class Inspection(Base, TimestampMixin):
         "Defect",
         back_populates="inspection",
         order_by="Defect.id",
+        lazy="selectin",
+    )
+
+    # Extended domain relationships
+    events: Mapped[List["InspectionEvent"]] = relationship(
+        "InspectionEvent",
+        back_populates="inspection",
+        order_by="InspectionEvent.occurred_at",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    summary: Mapped[Optional["InspectionSummary"]] = relationship(
+        "InspectionSummary",
+        back_populates="inspection",
+        uselist=False,
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+    device_sessions: Mapped[List["DeviceSession"]] = relationship(
+        "DeviceSession",
+        back_populates="inspection",
+        lazy="selectin",
+    )
+    vehicle_events: Mapped[List["VehicleStatusEvent"]] = relationship(
+        "VehicleStatusEvent",
+        back_populates="inspection",
+        order_by="VehicleStatusEvent.recorded_at",
+        lazy="selectin",
+    )
+    encoder_samples: Mapped[List["EncoderSample"]] = relationship(
+        "EncoderSample",
+        back_populates="inspection",
+        order_by="EncoderSample.recorded_at",
+        lazy="selectin",
+    )
+    imu_samples: Mapped[List["IMUSample"]] = relationship(
+        "IMUSample",
+        back_populates="inspection",
+        order_by="IMUSample.recorded_at",
+        lazy="selectin",
+    )
+    camera_frames: Mapped[List["CameraFrame"]] = relationship(
+        "CameraFrame",
+        back_populates="inspection",
+        order_by="CameraFrame.recorded_at",
+        lazy="selectin",
+    )
+    reports: Mapped[List["InspectionReport"]] = relationship(
+        "InspectionReport",
+        back_populates="inspection",
+        order_by="InspectionReport.generated_at",
         lazy="selectin",
     )
 

@@ -22,7 +22,13 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.resolved_database_url)
+# Respect explicitly passed custom sqlalchemy.url (e.g. in test suites), else default to settings
+custom_url = config.get_main_option("sqlalchemy.url")
+if not custom_url or "driver://user:pass" in custom_url or "%(sqlalchemy.url)s" in custom_url:
+    target_url = settings.resolved_database_url
+else:
+    target_url = custom_url
+config.set_main_option("sqlalchemy.url", target_url)
 
 # Target metadata for autogenerate support
 target_metadata = Base.metadata
@@ -30,7 +36,8 @@ target_metadata = Base.metadata
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    custom_url = config.get_main_option("sqlalchemy.url")
+    url = target_url if custom_url else settings.resolved_database_url
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -46,13 +53,18 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section, {})
-    configuration["sqlalchemy.url"] = settings.resolved_database_url
+    custom_url = config.get_main_option("sqlalchemy.url")
+    if not custom_url or "driver://user:pass" in custom_url:
+        url = settings.resolved_database_url
+    else:
+        url = custom_url
+    configuration["sqlalchemy.url"] = url
 
     connectable = engine_from_config(
         configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
-        connect_args={"check_same_thread": False} if settings.resolved_database_url.startswith("sqlite") else {},
+        connect_args={"check_same_thread": False} if url.startswith("sqlite") else {},
     )
 
     with connectable.connect() as connection:

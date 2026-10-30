@@ -4,6 +4,7 @@ Configures SQLAlchemy 2.x engine, sessionmaker, and FastAPI dependency injection
 Enforces SQLite foreign-key constraints via connection event listeners.
 """
 
+from contextlib import contextmanager
 from typing import Generator
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
@@ -28,9 +29,10 @@ engine = create_engine(
 
 @event.listens_for(Engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Enforce foreign key integrity constraints on SQLite connections."""
+    """Enforce foreign key integrity constraints and busy timeout on SQLite connections."""
     cursor = dbapi_connection.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.execute("PRAGMA busy_timeout=5000")
     cursor.close()
 
 
@@ -49,4 +51,15 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+@contextmanager
+def transaction_scope(session: Session) -> Generator[Session, None, None]:
+    """Execute a transaction block with automatic commit and rollback on exception."""
+    try:
+        yield session
+        session.commit()
+    except Exception:
+        session.rollback()
+        raise
 

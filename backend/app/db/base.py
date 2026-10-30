@@ -6,7 +6,7 @@ across SQLite and all database engines.
 
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import DateTime, MetaData, TypeDecorator
+from sqlalchemy import BigInteger, DateTime, Integer, MetaData, TypeDecorator
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 # Explicit naming conventions for SQLite batch operations and relational constraints
@@ -18,6 +18,18 @@ naming_convention = {
     "pk": "pk_%(table_name)s",
 }
 metadata = MetaData(naming_convention=naming_convention)
+
+
+def get_bigint_id_type():
+    """Returns a cross-engine compatible integer ID type.
+
+    Compiles to INTEGER on SQLite to alias 64-bit rowid auto-increment.
+    Compiles to BIGINT on PostgreSQL (BIGSERIAL for primary keys).
+    """
+    return BigInteger().with_variant(Integer, "sqlite")
+
+
+BigIntId = get_bigint_id_type()
 
 
 class UtcDateTime(TypeDecorator):
