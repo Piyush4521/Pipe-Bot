@@ -1,6 +1,4 @@
-import type { FC } from 'react';
-import { NavLink } from 'react-router-dom';
-import { ROUTES } from '@/constants/routes';
+import { useState, type FC } from 'react';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { useAppMode, useInspection } from '@/app/providers/AppContext';
 import { Card, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
@@ -8,17 +6,19 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { NewInspectionModal } from '@/components/inspection/NewInspectionModal';
 import {
   History,
-  Play,
   PlusCircle,
   Inbox,
+  RefreshCw,
 } from 'lucide-react';
 
 export const HistoryPage: FC = () => {
   useDocumentTitle('Inspection History');
   const { isDemoMode } = useAppMode();
-  const { inspections } = useInspection();
+  const { inspections, refreshData, isRefreshing } = useInspection();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
     <div className="space-y-6">
@@ -45,11 +45,25 @@ export const HistoryPage: FC = () => {
           </div>
         </div>
 
-        <NavLink to={ROUTES.DASHBOARD.INSPECTION}>
-          <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-3.5 h-3.5" />}>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refreshData()}
+            disabled={isRefreshing || isDemoMode}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
+          >
+            Sync
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => setIsModalOpen(true)}
+            leftIcon={<PlusCircle className="w-3.5 h-3.5" />}
+          >
             New Inspection Session
           </Button>
-        </NavLink>
+        </div>
       </div>
 
       {/* History Table Container */}
@@ -90,19 +104,31 @@ export const HistoryPage: FC = () => {
                     </div>
                   </TableCell>
                   <TableCell className="text-industrial-600">
-                    {record.startedAt}
+                    {record.startedAt ? new Date(record.startedAt).toLocaleString() : '--'}
                   </TableCell>
                   <TableCell className="text-industrial-800">
                     {record.pipeIdentifier}
                   </TableCell>
                   <TableCell className="font-bold text-industrial-900">
-                    {record.totalDistanceMeters.toFixed(2)} m
+                    {record.totalDistanceMeters != null
+                      ? `${record.totalDistanceMeters.toFixed(2)} m`
+                      : '--'}
                   </TableCell>
                   <TableCell className="text-brand-orange font-bold">
-                    {record.defectCount}
+                    {record.defectCount ?? 0}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="healthy" isMono className="text-[10px]">
+                    <Badge
+                      variant={
+                        record.status === 'completed'
+                          ? 'healthy'
+                          : record.status === 'running'
+                          ? 'brand'
+                          : 'outline'
+                      }
+                      isMono
+                      className="text-[10px]"
+                    >
                       {record.status.toUpperCase()}
                     </Badge>
                   </TableCell>
@@ -116,11 +142,14 @@ export const HistoryPage: FC = () => {
                     title="No inspection history available."
                     description="Completed conduit inspection missions and odometry logs will be automatically recorded here."
                     action={
-                      <NavLink to={ROUTES.DASHBOARD.INSPECTION}>
-                        <Button variant="outline" size="sm" leftIcon={<Play className="w-3.5 h-3.5" />}>
-                          Launch Live Inspection
-                        </Button>
-                      </NavLink>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => setIsModalOpen(true)}
+                        leftIcon={<PlusCircle className="w-3.5 h-3.5" />}
+                      >
+                        Create New Mission
+                      </Button>
                     }
                   />
                 </TableCell>
@@ -129,6 +158,13 @@ export const HistoryPage: FC = () => {
           </TableBody>
         </Table>
       </Card>
+
+      {/* New Mission Modal */}
+      <NewInspectionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => refreshData()}
+      />
     </div>
   );
 };

@@ -8,22 +8,26 @@ import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/Table';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { DefectDetailDrawer } from '@/components/defects/DefectDetailDrawer';
+import type { DefectDetection } from '@/types';
 import {
   AlertOctagon,
   Search,
   RotateCcw,
   Inbox,
   FilterX,
+  ExternalLink,
 } from 'lucide-react';
 
 export const DefectsPage: FC = () => {
   useDocumentTitle('Defect Registry');
   const { isDemoMode } = useAppMode();
-  const { defects } = useDefects();
+  const { defects, updateDefectStatus } = useDefects();
 
   const [selectedClass, setSelectedClass] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [activeDefect, setActiveDefect] = useState<DefectDetection | null>(null);
 
   const defectClassOptions = [
     { label: 'All Defect Classes', value: 'all' },
@@ -35,9 +39,9 @@ export const DefectsPage: FC = () => {
 
   const reviewStatusOptions = [
     { label: 'All Review States', value: 'all' },
-    { label: 'Unreviewed', value: 'unreviewed' },
-    { label: 'Verified', value: 'verified' },
-    { label: 'Dismissed', value: 'dismissed' },
+    { label: 'Unreviewed / Pending', value: 'unreviewed' },
+    { label: 'Verified / Confirmed', value: 'verified' },
+    { label: 'Dismissed / Rejected', value: 'dismissed' },
   ];
 
   const handleResetFilters = () => {
@@ -49,23 +53,37 @@ export const DefectsPage: FC = () => {
   // Filter pipeline executing dynamically against active dataset
   const filteredDefects = useMemo(() => {
     return defects.filter((item) => {
-      // 1. Class filter
-      if (selectedClass !== 'all' && item.defectClass !== selectedClass) {
-        return false;
+      // 1. Class filter (case-insensitive)
+      if (selectedClass !== 'all') {
+        if (item.defectClass.toLowerCase() !== selectedClass.toLowerCase()) {
+          return false;
+        }
       }
-      // 2. Review status filter
-      if (selectedStatus !== 'all' && item.reviewStatus !== selectedStatus) {
-        return false;
+
+      // 2. Review status filter (handling status aliases)
+      if (selectedStatus !== 'all') {
+        const itemStatus = (item.reviewStatus || '').toLowerCase();
+        if (selectedStatus === 'unreviewed' && itemStatus !== 'unreviewed' && itemStatus !== 'pending') {
+          return false;
+        }
+        if (selectedStatus === 'verified' && itemStatus !== 'verified' && itemStatus !== 'confirmed') {
+          return false;
+        }
+        if (selectedStatus === 'dismissed' && itemStatus !== 'dismissed' && itemStatus !== 'rejected') {
+          return false;
+        }
       }
+
       // 3. Search query matching ID, frameId, or notes
       if (searchQuery.trim() !== '') {
         const query = searchQuery.toLowerCase().trim();
-        const matchesId = item.id.toLowerCase().includes(query);
-        const matchesFrame = item.frameId.toLowerCase().includes(query);
-        const matchesInspection = item.inspectionId.toLowerCase().includes(query);
+        const matchesId = String(item.id || '').toLowerCase().includes(query);
+        const matchesDefectId = item.defectId ? item.defectId.toLowerCase().includes(query) : false;
+        const matchesFrame = (item.frameId || '').toLowerCase().includes(query);
+        const matchesInspection = String(item.inspectionId || '').toLowerCase().includes(query);
         const matchesNotes = item.notes?.toLowerCase().includes(query) ?? false;
 
-        if (!matchesId && !matchesFrame && !matchesInspection && !matchesNotes) {
+        if (!matchesId && !matchesDefectId && !matchesFrame && !matchesInspection && !matchesNotes) {
           return false;
         }
       }
@@ -96,139 +114,158 @@ export const DefectsPage: FC = () => {
               )}
             </div>
             <p className="text-xs text-industrial-600 mt-0.5">
-              Trained classes: Deformation, Misalignment, Obstacle, Rupture. Defect coordinates and bounding snapshots will appear here upon detection.
+              Trained classes: Deformation, Misalignment, Obstacle, Rupture. Defect coordinates and bounding snapshots will appear here upon detection. Click any row to inspect optical evidence.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <Badge variant="outline" isMono className="bg-white text-[10px]">Deformation</Badge>
-          <Badge variant="outline" isMono className="bg-white text-[10px]">Misalignment</Badge>
-          <Badge variant="outline" isMono className="bg-white text-[10px]">Obstacle</Badge>
-          <Badge variant="outline" isMono className="bg-white text-[10px]">Rupture</Badge>
+        <div className="flex items-center gap-2 font-mono text-xs">
+          <Badge variant="outline" isMono className="text-[10px]">
+            Total Logged: {defects.length}
+          </Badge>
+          <Badge variant="brand" isMono className="text-[10px]">
+            Filtered: {filteredDefects.length}
+          </Badge>
         </div>
       </div>
 
-      {/* Filter Toolbar */}
+      {/* Filter and Query Toolbar */}
       <Card variant="default" className="border-industrial-200">
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-end">
-            <div className="sm:col-span-5">
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+            {/* Search Input */}
+            <div className="sm:col-span-5 relative">
+              <Search className="w-4 h-4 text-industrial-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <Input
-                label="Search Defect, Frame, or Inspection ID"
-                placeholder="e.g. DEF-001, FRM-01420, or INS-2026..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                leftAddon={<Search className="w-4 h-4 text-industrial-400" />}
+                placeholder="Search by Defect ID, Frame, or note..."
+                className="pl-9 text-xs"
               />
             </div>
 
+            {/* Class Filter Dropdown */}
             <div className="sm:col-span-3">
               <Select
-                label="Defect Class"
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
                 options={defectClassOptions}
+                className="text-xs"
               />
             </div>
 
+            {/* Review Status Dropdown */}
             <div className="sm:col-span-3">
               <Select
-                label="Review Status"
                 value={selectedStatus}
                 onChange={(e) => setSelectedStatus(e.target.value)}
                 options={reviewStatusOptions}
+                className="text-xs"
               />
             </div>
 
-            <div className="sm:col-span-1">
+            {/* Reset Filters Button */}
+            <div className="sm:col-span-1 flex justify-end">
               <Button
-                variant={hasActiveFilters ? 'secondary' : 'outline'}
-                size="md"
+                variant="outline"
+                size="sm"
                 onClick={handleResetFilters}
-                className="w-full"
-                title="Reset active filters"
                 disabled={!hasActiveFilters}
+                title="Reset all search queries and dropdown filters"
+                className="w-full sm:w-auto p-2"
+                aria-label="Reset filters"
               >
-                <RotateCcw className="w-4 h-4" />
+                <RotateCcw className="w-4 h-4 text-industrial-600" />
               </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Defect Table & Empty State */}
+      {/* Defects Table View */}
       <Card variant="raised" className="border-industrial-300 overflow-hidden">
         <CardHeader className="p-4 pb-3 border-b border-industrial-200 flex flex-row items-center justify-between">
           <div>
             <CardTitle className="text-xs uppercase font-mono tracking-wider">
-              Conduit Defect Log
+              Anomalies & Defect Detections
             </CardTitle>
             <CardDescription className="text-xs">
-              Spatial catalog of all verified and flagged anomalies
+              Correlated frame detections with spatial odometry and verification audit states
             </CardDescription>
           </div>
-          <Badge variant={isDemoMode ? 'brand' : 'default'} isMono className="text-[10px]">
-            {filteredDefects.length} Records {isDemoMode ? '(Demo)' : ''}
-          </Badge>
+          <span className="text-[11px] font-mono text-industrial-500">
+            Click row for verification controls
+          </span>
         </CardHeader>
 
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[12%]">Defect ID</TableHead>
+              <TableHead className="w-[14%]">Defect ID</TableHead>
               <TableHead className="w-[16%]">Classification</TableHead>
               <TableHead className="w-[14%]">Confidence</TableHead>
               <TableHead className="w-[14%]">Frame ID</TableHead>
-              <TableHead className="w-[20%]">Capture Time (UTC)</TableHead>
+              <TableHead className="w-[18%]">Capture Time (UTC)</TableHead>
               <TableHead className="w-[12%]">Distance</TableHead>
               <TableHead className="w-[12%]">Review Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredDefects.length > 0 ? (
-              filteredDefects.map((defect) => (
-                <TableRow key={defect.id} className="font-mono text-xs">
-                  <TableCell className="font-bold text-industrial-900">
-                    <div className="flex items-center gap-1.5">
-                      {defect.isDemo && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-orange" title="Demo Record" />
-                      )}
-                      <span>{defect.id}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="uppercase font-semibold text-brand-orange">
-                    {defect.defectClass}
-                  </TableCell>
-                  <TableCell className="text-industrial-700">
-                    {defect.confidence ? `${(defect.confidence * 100).toFixed(1)}%` : '--'}
-                  </TableCell>
-                  <TableCell className="text-industrial-600">
-                    {defect.frameId}
-                  </TableCell>
-                  <TableCell className="text-industrial-500 text-[11px]">
-                    {defect.captureTimestamp}
-                  </TableCell>
-                  <TableCell className="font-bold text-industrial-900">
-                    {defect.estimatedDistanceMeters !== null
-                      ? `${defect.estimatedDistanceMeters.toFixed(2)} m`
-                      : '--'}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={defect.reviewStatus === 'verified' ? 'healthy' : 'outline'}
-                      isMono
-                      className="text-[10px]"
-                    >
-                      {defect.reviewStatus}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredDefects.map((defect) => {
+                const isConfirmed =
+                  defect.reviewStatus === 'confirmed' || defect.reviewStatus === 'verified';
+                const isRejected =
+                  defect.reviewStatus === 'rejected' || defect.reviewStatus === 'dismissed';
+
+                return (
+                  <TableRow
+                    key={defect.id}
+                    onClick={() => setActiveDefect(defect)}
+                    className="font-mono text-xs cursor-pointer hover:bg-industrial-100 transition-colors"
+                  >
+                    <TableCell className="font-bold text-industrial-900">
+                      <div className="flex items-center gap-1.5">
+                        {defect.isDemo && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-brand-orange" title="Demo Record" />
+                        )}
+                        <span>{defect.defectId || defect.id}</span>
+                        <ExternalLink className="w-3 h-3 text-industrial-400 opacity-0 group-hover:opacity-100" />
+                      </div>
+                    </TableCell>
+                    <TableCell className="uppercase font-semibold text-brand-orange">
+                      {defect.defectClass}
+                    </TableCell>
+                    <TableCell className="text-industrial-700">
+                      {defect.confidence != null ? `${(defect.confidence * 100).toFixed(1)}%` : '--'}
+                    </TableCell>
+                    <TableCell className="text-industrial-600">
+                      {defect.frameId}
+                    </TableCell>
+                    <TableCell className="text-industrial-500 text-[11px]">
+                      {defect.captureTimestamp ? new Date(defect.captureTimestamp).toLocaleTimeString() : '--'}
+                    </TableCell>
+                    <TableCell className="font-bold text-industrial-900">
+                      {defect.estimatedDistanceMeters !== null && defect.estimatedDistanceMeters !== undefined
+                        ? `${defect.estimatedDistanceMeters.toFixed(2)} m`
+                        : '--'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={isConfirmed ? 'healthy' : isRejected ? 'critical' : 'outline'}
+                        isMono
+                        className="text-[10px] uppercase"
+                      >
+                        {defect.reviewStatus}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell colSpan={7} className="p-0">
-                  {isDemoMode && hasActiveFilters ? (
+                  {hasActiveFilters ? (
                     <EmptyState
                       icon={<FilterX className="w-8 h-8 text-industrial-400" />}
                       title="No matching defects found"
@@ -252,6 +289,13 @@ export const DefectsPage: FC = () => {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Defect Detail & Evidence Review Drawer */}
+      <DefectDetailDrawer
+        defect={activeDefect}
+        onClose={() => setActiveDefect(null)}
+        onUpdateStatus={updateDefectStatus}
+      />
     </div>
   );
 };

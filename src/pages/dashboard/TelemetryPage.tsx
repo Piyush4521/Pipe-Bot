@@ -238,19 +238,33 @@ export const TelemetryPage: FC = () => {
               </Badge>
             </CardHeader>
             <CardContent className="p-6">
-              {isDemoMode ? (
+              {isDemoMode || encoderTelemetry.estimatedDistanceMeters !== null ? (
                 <div className="p-4 bg-industrial-50 border border-industrial-200 rounded-sm space-y-3 font-mono text-xs">
                   <div className="flex justify-between text-industrial-600">
-                    <span>Sample Vector:</span>
-                    <span className="font-bold text-industrial-900">[0.0m → 4.2m → 8.9m → 14.52m]</span>
+                    <span>Odometry Integration:</span>
+                    <span className="font-bold text-industrial-900">
+                      {encoderTelemetry.estimatedDistanceMeters != null
+                        ? `${encoderTelemetry.estimatedDistanceMeters.toFixed(2)} m`
+                        : '0.00 m'}
+                    </span>
                   </div>
                   <div className="w-full bg-industrial-200 h-2 rounded-sm overflow-hidden">
-                    <div className="bg-brand-orange h-full w-[51%]" />
+                    <div
+                      className="bg-brand-orange h-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(
+                          ((encoderTelemetry.estimatedDistanceMeters ?? 0) / 20) * 100,
+                          100
+                        )}%`,
+                      }}
+                    />
                   </div>
                   <div className="flex justify-between text-[11px] text-industrial-500">
                     <span>Entry Point (0.00 m)</span>
-                    <span className="text-brand-orange font-bold">Current: 14.52 m</span>
-                    <span>Target Run: 28.50 m</span>
+                    <span className="text-brand-orange font-bold">
+                      Current: {(encoderTelemetry.estimatedDistanceMeters ?? 0).toFixed(2)} m
+                    </span>
+                    <span>Range: 20.00 m</span>
                   </div>
                 </div>
               ) : (
@@ -271,23 +285,37 @@ export const TelemetryPage: FC = () => {
                 <CardDescription className="text-xs">MPU6050 incline measurement across pipe joints</CardDescription>
               </div>
               <Badge variant={isDemoMode ? 'brand' : 'default'} isMono className="text-[10px]">
-                {isDemoMode ? 'Demo Pitch: +1.8°' : '0 Data Points'}
+                {imuTelemetry.pitchDegrees != null
+                  ? `Pitch: ${imuTelemetry.pitchDegrees.toFixed(1)}°`
+                  : '0 Data Points'}
               </Badge>
             </CardHeader>
             <CardContent className="p-6">
-              {isDemoMode ? (
+              {isDemoMode || imuTelemetry.pitchDegrees !== null ? (
                 <div className="p-4 bg-industrial-50 border border-industrial-200 rounded-sm space-y-3 font-mono text-xs">
                   <div className="flex justify-between text-industrial-600">
                     <span>Gradient Trend:</span>
-                    <span className="font-bold text-status-healthy">Normal Gravity Drainage (+1.8°)</span>
+                    <span className="font-bold text-status-healthy">
+                      Incline Angle: {(imuTelemetry.pitchDegrees ?? 0).toFixed(1)}°
+                    </span>
                   </div>
                   <div className="w-full bg-industrial-200 h-2 rounded-sm overflow-hidden flex">
-                    <div className="bg-status-healthy h-full w-[65%]" />
+                    <div
+                      className="bg-status-healthy h-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(
+                          Math.abs(imuTelemetry.pitchDegrees ?? 0) * 10,
+                          100
+                        )}%`,
+                      }}
+                    />
                   </div>
                   <div className="flex justify-between text-[11px] text-industrial-500">
-                    <span>Min: +0.2°</span>
-                    <span className="text-industrial-900 font-bold">Mean: +1.8°</span>
-                    <span>Max: +2.4°</span>
+                    <span>Roll: {(imuTelemetry.rollDegrees ?? 0).toFixed(1)}°</span>
+                    <span className="text-industrial-900 font-bold">
+                      Pitch: {(imuTelemetry.pitchDegrees ?? 0).toFixed(1)}°
+                    </span>
+                    <span>Gravity Axis: Z</span>
                   </div>
                 </div>
               ) : (

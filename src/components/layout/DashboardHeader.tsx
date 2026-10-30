@@ -5,7 +5,15 @@ import { useAppMode, useSystemStatus } from '@/app/providers/AppContext';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { StatusIndicator } from '@/components/ui/StatusIndicator';
-import { Menu, Home, ChevronRight, Sparkles, PowerOff } from 'lucide-react';
+import {
+  Menu,
+  Home,
+  ChevronRight,
+  Sparkles,
+  PowerOff,
+  RefreshCw,
+  Server,
+} from 'lucide-react';
 
 interface DashboardHeaderProps {
   pageTitle: string;
@@ -19,7 +27,7 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
   breadcrumbs = [{ label: 'Dashboard', path: ROUTES.DASHBOARD.ROOT }],
 }) => {
   const { isDemoMode, toggleDemoMode } = useAppMode();
-  const { systemStatus } = useSystemStatus();
+  const { systemStatus, backendOnline, isRefreshing, refreshData } = useSystemStatus();
 
   return (
     <header className="h-16 bg-white border-b border-industrial-200 sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -58,8 +66,19 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
         </div>
       </div>
 
-      {/* Right: Demo Mode Toggle, Status & Landing Link */}
-      <div className="flex items-center gap-3">
+      {/* Right: Refresh, Demo Mode Toggle, Status & Landing Link */}
+      <div className="flex items-center gap-2.5">
+        {/* Sync / Refresh Trigger */}
+        <button
+          onClick={() => refreshData()}
+          disabled={isRefreshing || isDemoMode}
+          title="Query latest backend status and sync active database state"
+          className="p-1.5 border border-industrial-200 rounded-sm text-industrial-600 hover:bg-industrial-100 hover:text-industrial-900 transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus:outline-none focus:ring-1 focus:ring-brand-orange"
+          aria-label="Sync backend data"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin text-brand-orange' : ''}`} />
+        </button>
+
         {/* Controlled Demo Mode Toggle */}
         <Button
           variant={isDemoMode ? 'danger' : 'outline'}
@@ -72,12 +91,28 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
           {isDemoMode ? 'Exit Demo' : 'Demo Mode'}
         </Button>
 
+        {/* Backend Connectivity Indicator */}
+        <div className="hidden md:flex items-center gap-2 p-1.5 px-2.5 bg-industrial-100 border border-industrial-200 rounded-sm">
+          <Server className="w-3.5 h-3.5 text-industrial-600" />
+          <StatusIndicator
+            status={isDemoMode || backendOnline || systemStatus.backend === 'connected' ? 'healthy' : 'offline'}
+            size="sm"
+            label={
+              isDemoMode
+                ? 'Backend: Demo Broker'
+                : backendOnline || systemStatus.backend === 'connected'
+                ? 'Backend: Online'
+                : 'Backend: Offline'
+            }
+          />
+        </div>
+
         {/* Hardware Status indicator */}
         <div className="hidden sm:flex items-center gap-3 p-1.5 px-3 bg-industrial-100 border border-industrial-200 rounded-sm">
           <StatusIndicator
             status={systemStatus.hardware === 'connected' ? 'healthy' : 'offline'}
             size="sm"
-            label={systemStatus.hardware === 'connected' ? 'Simulated Hardware' : 'Hardware: Disconnected'}
+            label={systemStatus.hardware === 'connected' ? 'Hardware: Linked' : 'Hardware: Disconnected'}
           />
           <div className="h-3 w-px bg-industrial-300" />
           <Badge
@@ -85,7 +120,7 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
             isMono
             className="text-[10px] py-0"
           >
-            {isDemoMode ? 'DEMO' : 'Prototype Mode'}
+            {isDemoMode ? 'DEMO' : 'LIVE'}
           </Badge>
         </div>
 
@@ -96,7 +131,7 @@ export const DashboardHeader: FC<DashboardHeaderProps> = ({
           title="Return to Public Site"
         >
           <Home className="w-4 h-4" />
-          <span className="hidden md:inline">Public Site</span>
+          <span className="hidden lg:inline">Public Site</span>
         </NavLink>
       </div>
     </header>
