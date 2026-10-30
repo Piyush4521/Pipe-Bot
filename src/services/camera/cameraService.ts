@@ -1,10 +1,19 @@
 import { APP_CONFIG } from '@/constants/config';
+import { apiClient } from '../api/apiClient';
+import { API_ENDPOINTS } from '../api/endpoints';
 import type { ConnectionState } from '@/types';
 
-export interface CameraStreamConfig {
-  streamUrl: string;
-  resolution: string;
-  fpsTarget: number;
+export interface CameraStatusPayload {
+  state: ConnectionState;
+  streamUrl?: string | null;
+  framesIngested?: number;
+  framesDecoded?: number;
+  framesDropped?: number;
+  currentFps?: number;
+  lastFrameTimestamp?: string | null;
+  cameraLatencyMs?: number | null;
+  resolution?: string;
+  bytesReceived?: number;
 }
 
 export class CameraService {
@@ -31,6 +40,57 @@ export class CameraService {
     if (!url) {
       this.status = 'disconnected';
     }
+  }
+
+  /**
+   * Fetch optical camera status from the backend service.
+   */
+  public async fetchBackendStatus(): Promise<CameraStatusPayload> {
+    return apiClient<CameraStatusPayload>(API_ENDPOINTS.CAMERA.STATUS);
+  }
+
+  /**
+   * Start camera worker stream ingestion on the backend.
+   */
+  public async startStream(streamUrl?: string): Promise<CameraStatusPayload> {
+    const url = streamUrl || this.defaultUrl || undefined;
+    return apiClient<CameraStatusPayload>(API_ENDPOINTS.CAMERA.START, {
+      method: 'POST',
+      params: url ? { stream_url: url } : undefined,
+    });
+  }
+
+  /**
+   * Stop camera worker stream ingestion on the backend.
+   */
+  public async stopStream(): Promise<CameraStatusPayload> {
+    return apiClient<CameraStatusPayload>(API_ENDPOINTS.CAMERA.STOP, {
+      method: 'POST',
+    });
+  }
+
+  /**
+   * Ingest a single frame image file for inference.
+   */
+  public async ingestFrame(
+    file: File,
+    inspectionId: number = 1
+  ): Promise<{ status: string; defectDetected: boolean; detectionsCount: number }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('inspection_id', String(inspectionId));
+
+    const response = await fetch(`${APP_CONFIG.apiBaseUrl}${API_ENDPOINTS.CAMERA.FRAME}`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Frame ingestion failed: ${response.status} ${text}`);
+    }
+
+    return response.json();
   }
 
   /**

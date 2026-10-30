@@ -21,10 +21,9 @@ const validatedMode: AppMode =
     : 'disconnected';
 
 export const APP_CONFIG: AppConfig = {
-  apiBaseUrl: metaEnv?.VITE_API_BASE_URL || '',
+  apiBaseUrl: metaEnv?.VITE_API_BASE_URL || '/api/v1',
   wsUrl: metaEnv?.VITE_WS_URL || '',
   cameraStreamUrl: metaEnv?.VITE_CAMERA_STREAM_URL || '',
   defaultMode: validatedMode,
   apiTimeoutMs: 10000,
 };
-

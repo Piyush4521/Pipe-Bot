@@ -35,10 +35,13 @@ export interface InspectionRecord extends BaseEntity {
   pipeDiameterMm: number;
   operatorId: string;
   startedAt: string;
-  completedAt?: string;
-  totalDistanceMeters: number;
+  completedAt?: string | null;
+  totalDistanceMeters: number | null;
   defectCount: number;
   status: InspectionStatus;
+  pipeMaterial?: string;
+  notes?: string | null;
+  isArchived?: boolean;
 }
 
 // 3. Optical Frame Metadata (Capture-Time Telemetry Association)
@@ -62,7 +65,13 @@ export type DefectClass =
   | 'rupture';
 export type DefectType = DefectClass;
 export type DefectSeverity = 'minor' | 'moderate' | 'severe' | 'critical';
-export type DefectReviewStatus = 'unreviewed' | 'verified' | 'dismissed';
+export type DefectReviewStatus =
+  | 'unreviewed'
+  | 'verified'
+  | 'dismissed'
+  | 'pending'
+  | 'confirmed'
+  | 'rejected';
 
 export interface BoundingBox {
   x: number;
@@ -72,6 +81,7 @@ export interface BoundingBox {
 }
 
 export interface DefectDetection extends BaseEntity {
+  defectId?: string;
   inspectionId: string;
   defectClass: DefectClass;
   confidence: number | null;

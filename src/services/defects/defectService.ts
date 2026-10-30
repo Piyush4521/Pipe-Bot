@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from '../api/endpoints';
 import type { DefectClass, DefectDetection, DefectReviewStatus } from '@/types';
 
 export interface DefectFilterParams {
-  inspectionId?: string;
+  inspectionId?: string | number;
   defectClass?: DefectClass | 'all';
   reviewStatus?: DefectReviewStatus | 'all';
   search?: string;
@@ -12,20 +12,27 @@ export interface DefectFilterParams {
 export const defectService = {
   async listDefects(params: DefectFilterParams = {}): Promise<DefectDetection[]> {
     const queryParams: Record<string, string | undefined> = {};
-    if (params.inspectionId) queryParams.inspectionId = params.inspectionId;
-    if (params.defectClass && params.defectClass !== 'all') queryParams.class = params.defectClass;
-    if (params.reviewStatus && params.reviewStatus !== 'all') queryParams.status = params.reviewStatus;
+    if (params.inspectionId) queryParams.inspection_id = String(params.inspectionId);
+    if (params.defectClass && params.defectClass !== 'all') queryParams.defect_class = params.defectClass;
+    if (params.reviewStatus && params.reviewStatus !== 'all') queryParams.review_status = params.reviewStatus;
     if (params.search) queryParams.q = params.search;
 
-    return apiClient<DefectDetection[]>(API_ENDPOINTS.DEFECTS.LIST, { params: queryParams });
+    const response = await apiClient<DefectDetection[] | { items: DefectDetection[] }>(
+      API_ENDPOINTS.DEFECTS.LIST,
+      { params: queryParams }
+    );
+    if (Array.isArray(response)) {
+      return response;
+    }
+    return response?.items ?? [];
   },
 
-  async getDefect(id: string): Promise<DefectDetection> {
+  async getDefect(id: string | number): Promise<DefectDetection> {
     return apiClient<DefectDetection>(API_ENDPOINTS.DEFECTS.GET(id));
   },
 
   async updateReviewStatus(
-    id: string,
+    id: string | number,
     status: DefectReviewStatus,
     notes?: string
   ): Promise<DefectDetection> {
@@ -35,4 +42,3 @@ export const defectService = {
     });
   },
 };
-
